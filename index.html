@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Age of War — 온라인 대결</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#12121f;color:#ddd;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px 8px}
+
+/* ── Typography ─────────────────────── */
+h1{font-size:26px;color:#ffd700;letter-spacing:2px;margin-bottom:4px;text-align:center}
+.subtitle{font-size:13px;color:#666;margin-bottom:20px;text-align:center}
+h3{font-size:14px;font-weight:600;margin-bottom:14px}
+
+/* ── Buttons ────────────────────────── */
+.btn{padding:10px 18px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;transition:all .15s;white-space:nowrap}
+.btn-red{background:#c0392b;color:#fff}.btn-red:hover{background:#e74c3c;transform:translateY(-1px)}
+.btn-blue{background:#1a4a7a;color:#fff}.btn-blue:hover{background:#2471a3}
+.btn-gray{background:#2c2c3e;color:#ccc;border:1px solid #444}.btn-gray:hover{background:#3a3a50}
+
+/* ── Lobby ──────────────────────────── */
+#lobby{width:100%;max-width:400px}
+.card{background:#1a1a2e;border:1px solid #2a2a45;border-radius:12px;padding:20px;margin-bottom:14px}
+input{width:100%;padding:10px 14px;background:#0d0d1a;border:1px solid #2a2a45;border-radius:8px;color:#eee;font-size:15px;margin-bottom:10px;letter-spacing:2px}
+input:focus{outline:none;border-color:#c0392b}
+.code-box{font-size:34px;font-weight:700;letter-spacing:8px;color:#ffd700;text-align:center;background:#0d0d1a;border-radius:8px;padding:14px;margin:10px 0}
+.err-text{color:#e74c3c;font-size:13px;margin-top:6px;min-height:18px}
+.wait-text{color:#888;font-size:13px;text-align:center;margin-top:8px}
+.pulse{animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+
+/* ── Game layout ────────────────────── */
+#game{display:none;width:100%;max-width:720px;flex-direction:column;gap:8px}
+
+.top-bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.base-info{padding:8px 10px;background:#1a1a2e;border-radius:10px;border:1px solid #2a2a45}
+.base-info.mine{border-left:3px solid #c0392b}
+.base-info.opp{border-right:3px solid #2471a3}
+.base-label{font-size:11px;color:#888;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+.era-tag{font-size:10px;padding:2px 6px;border-radius:10px;background:#2a2a3e;color:#ffd700}
+.hp-track{height:10px;background:#222;border-radius:5px;overflow:hidden;margin-bottom:2px}
+.hp-fill{height:100%;border-radius:5px;transition:width .25s}
+.hp-fill.p0{background:linear-gradient(90deg,#922b21,#e74c3c)}
+.hp-fill.p1{background:linear-gradient(90deg,#1a5276,#2e86c1)}
+.hp-num{font-size:11px;color:#888}
+.center-info{text-align:center}
+.gold-disp{font-size:20px;color:#ffd700;font-weight:700}
+.round-badge{font-size:11px;color:#666;margin-top:2px}
+
+/* ── Canvas ─────────────────────────── */
+canvas{display:block;width:100%;border-radius:10px;border:2px solid #2a2a45;background:#12121f}
+
+/* ── Controls ───────────────────────── */
+.controls{background:#1a1a2e;border:1px solid #2a2a45;border-radius:10px;padding:12px}
+.ctrl-section{margin-bottom:10px}
+.ctrl-title{font-size:11px;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
+.unit-row{display:flex;gap:6px;flex-wrap:wrap}
+.u-btn{padding:7px 10px;background:#16213e;border:1px solid #2a3a5e;border-radius:8px;color:#ccc;font-size:12px;cursor:pointer;transition:all .1s;text-align:center;min-width:75px;line-height:1.4}
+.u-btn:hover:not([disabled]){border-color:#e74c3c;background:#2a1a1a;color:#fff}
+.u-btn[disabled]{opacity:.35;cursor:not-allowed}
+.u-btn .ucost{font-size:10px;color:#ffd700;display:block}
+.bottom-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.spec-btn{padding:8px 16px;background:#2d1b00;border:1px solid #8b5e00;border-radius:8px;color:#ffd700;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.spec-btn:hover:not([disabled]){background:#8b5e00;color:#fff}
+.spec-btn[disabled]{opacity:.35;cursor:not-allowed}
+.upg-btn{padding:8px 14px;background:#0d2d0d;border:1px solid #2e7d32;border-radius:8px;color:#81c784;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;margin-left:auto}
+.upg-btn:hover:not([disabled]){background:#2e7d32;color:#fff}
+.upg-btn[disabled]{opacity:.35;cursor:not-allowed}
+
+/* ── Status bar ─────────────────────── */
+#statusBar{font-size:12px;color:#555;text-align:center;padding:4px 0}
+
+/* ── Game over ──────────────────────── */
+#gameover{display:none;text-align:center;margin-top:20px}
+#gameover h2{font-size:36px;margin-bottom:10px}
+#gameover p{color:#888;font-size:15px;margin-bottom:20px}
+
+/* ── Mobile tweaks ──────────────────── */
+@media(max-width:520px){
+  .u-btn{min-width:60px;font-size:11px;padding:6px 7px}
+  .gold-disp{font-size:16px}
+  h1{font-size:20px}
+}
+</style>
+</head>
+<body>
+
+<h1>⚔️ AGE OF WAR</h1>
+<p class="subtitle">온라인 실시간 2인 대결</p>
+
+<!-- ════════ LOBBY ════════ -->
+<div id="lobby">
+  <div class="card">
+    <h3 style="color:#e74c3c">🏰 방 만들기</h3>
+    <button class="btn btn-red" onclick="createRoom()" style="width:100%">새 방 만들기</button>
+    <div id="createdBox" style="display:none">
+      <div class="code-box" id="codeDisplay">——————</div>
+      <p class="wait-text">이 코드를 친구에게 알려주세요</p>
+      <p class="wait-text pulse" id="waitP2">상대방 기다리는 중...</p>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="color:#2e86c1">🗡️ 방 참가하기</h3>
+    <input id="joinInput" placeholder="초대 코드 6자리" maxlength="6">
+    <button class="btn btn-blue" onclick="joinRoom()" style="width:100%">입장</button>
+    <div class="err-text" id="joinErr"></div>
+  </div>
+  <p id="connStatus" style="text-align:center;color:#444;font-size:12px;margin-top:6px">서버 연결 중...</p>
+</div>
+
+<!-- ════════ GAME ════════ -->
+<div id="game" style="display:none">
+
+  <!-- HP / gold bar -->
+  <div class="top-bar">
+    <div class="base-info mine" id="myInfo">
+      <div class="base-label">
+        <span id="myLabel">🔴 나</span>
+        <span class="era-tag" id="myEraTag">원시 시대</span>
+      </div>
+      <div class="hp-track"><div class="hp-fill p0" id="myHpBar" style="width:100%"></div></div>
+      <div class="hp-num" id="myHpNum">1000 / 1000</div>
+    </div>
+    <div class="center-info">
+      <div class="gold-disp">💰 <span id="goldNum">50</span></div>
+      <div class="round-badge" id="roundBadge">진행 중</div>
+    </div>
+    <div class="base-info opp" id="oppInfo">
+      <div class="base-label">
+        <span id="oppLabel">🔵 상대</span>
+        <span class="era-tag" id="oppEraTag">원시 시대</span>
+      </div>
+      <div class="hp-track"><div class="hp-fill p1" id="oppHpBar" style="width:100%"></div></div>
+      <div class="hp-num" id="oppHpNum">1000 / 1000</div>
+    </div>
+  </div>
+
+  <canvas id="canvas" width="700" height="300"></canvas>
+
+  <!-- Unit + ability controls -->
+  <div class="controls">
+    <div class="ctrl-section">
+      <div class="ctrl-title">병사 소환</div>
+      <div class="unit-row" id="unitRow"></div>
+    </div>
+    <div class="ctrl-section">
+      <div class="bottom-row">
+        <button class="spec-btn" id="specBtn" onclick="useSpecial()">
+          💥 특수 공격 <span id="specCdSpan" style="font-size:11px;font-weight:400">(준비됨)</span>
+        </button>
+        <button class="upg-btn" id="upgBtn" onclick="upgradeEra()">🔬 시대 진화</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="statusBar">—</div>
+</div>
+
+<!-- ════════ GAME OVER ════════ -->
+<div id="gameover">
+  <h2 id="goTitle"></h2>
+  <p id="goMsg"></p>
+  <button class="btn btn-red" onclick="location.reload()">다시 시작</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════
+const CW = 700, CH = 300, GROUND = 228;
+const BASE_HP = 1000;
+const BASE_W  = 70, BASE_H = 108;
+const P0_X = 0, P1_X = CW - BASE_W;   // left/right base X
+const GOLD_TICK = 1.15;                // seconds between gold income
+const SIM_STEP  = 1/30;               // fixed simulation step (30 fps logic)
+
+const ERA_DATA = [
+  { name:'원시 시대', upgCost:500,  specName:'돌 투척',   specDmg:45,  specCd:9,  income:8  },
+  { name:'중세 시대', upgCost:1000, specName:'화살 공세', specDmg:75,  specCd:11, income:13 },
+  { name:'근대 시대', upgCost:null, specName:'포격',      specDmg:115, specCd:13, income:19 },
+];
+
+// [era][unit]
+const UNIT_DEFS = [
+  [
+    {id:'warrior', name:'전사',   emoji:'🗡️', cost:50,  hp:55,  atk:7,  aspd:1.5, spd:28, range:22, kr:12},
+    {id:'slinger', name:'투석꾼', emoji:'🪨', cost:85,  hp:30,  atk:13, aspd:2.2, spd:22, range:72, kr:18},
+    {id:'beast',   name:'맹수',   emoji:'🐗', cost:130, hp:95,  atk:11, aspd:1.1, spd:40, range:18, kr:26},
+  ],
+  [
+    {id:'knight',   name:'기사',   emoji:'⚔️', cost:110, hp:115, atk:17, aspd:1.4, spd:24, range:22, kr:30},
+    {id:'archer',   name:'궁수',   emoji:'🏹', cost:140, hp:55,  atk:23, aspd:2.0, spd:28, range:88, kr:36},
+    {id:'catapult', name:'투석기', emoji:'🏰', cost:220, hp:75,  atk:48, aspd:3.5, spd:13, range:112,kr:52},
+  ],
+  [
+    {id:'rifleman',  name:'총병',   emoji:'🔫', cost:160, hp:85,  atk:28, aspd:2.0, spd:33, range:98, kr:42},
+    {id:'machinegun',name:'기관총', emoji:'💥', cost:270, hp:135, atk:34, aspd:1.0, spd:18, range:78, kr:62},
+    {id:'cannon',    name:'대포',   emoji:'💣', cost:380, hp:105, atk:68, aspd:4.0, spd:10, range:132,kr:85},
+  ],
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════════════════════════
+let myPI = -1;   // 0 or 1
+let G    = null; // game state object
+
+function newGame() {
+  return {
+    bases:  [{ hp:BASE_HP, era:0 }, { hp:BASE_HP, era:0 }],
+    gold:   [50, 50],
+    specCd: [0, 0],
+    goldT:  0,
+    units:  [],          // [{id,owner,x,y,hp,maxHp,atk,aspd,atkT,spd,range,kr,eraAt,defId,dead}]
+    projs:  [],          // [{x,y,tx,ty,life,maxLife,type,r?}]
+    uid:    0,
+    over:   false,
+    winner: -1,
+    pending:[], // actions received from opponent
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// WEBSOCKET
+// ═══════════════════════════════════════════════════════════════════
+let ws = null;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+
+  ws.onopen  = ()  => setConn('✅ 서버 연결됨');
+  ws.onclose = ()  => setConn('❌ 서버 연결 끊김 — 새로고침 해주세요');
+  ws.onerror = ()  => setConn('⚠️ 연결 오류');
+  ws.onmessage = e => onMsg(JSON.parse(e.data));
+}
+
+function send(obj) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); }
+function setConn(t) { document.getElementById('connStatus').textContent = t; }
+
+function onMsg(m) {
+  switch (m.type) {
+    case 'created':
+      document.getElementById('codeDisplay').textContent = m.code;
+      document.getElementById('createdBox').style.display = 'block';
+      break;
+    case 'error':
+      document.getElementById('joinErr').textContent = m.text;
+      break;
+    case 'start':
+      startGame(m.pi);
+      break;
+    case 'opp_act':
+      if (G) G.pending.push(m.act);
+      break;
+    case 'disconnected':
+      if (G && !G.over) endGame(myPI, '상대방이 연결을 끊었습니다.');
+      break;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LOBBY ACTIONS
+// ═══════════════════════════════════════════════════════════════════
+function createRoom() { send({ type:'create' }); }
+
+function joinRoom() {
+  const code = document.getElementById('joinInput').value.trim().toUpperCase();
+  document.getElementById('joinErr').textContent = '';
+  if (code.length !== 6) {
+    document.getElementById('joinErr').textContent = '6자리 코드를 입력하세요';
+    return;
+  }
+  send({ type:'join', code });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAME START
+// ═══════════════════════════════════════════════════════════════════
+function startGame(pi) {
+  myPI = pi;
+  G = newGame();
+
+  document.getElementById('lobby').style.display = 'none';
+  document.getElementById('game').style.display  = 'flex';
+
+  buildUnitButtons();
+  updateTopBar();
+
+  if (pi === 0) {
+    document.getElementById('myLabel').textContent  = '🔴 나 (왼쪽)';
+    document.getElementById('oppLabel').textContent = '🔵 상대 (오른쪽)';
+  } else {
+    document.getElementById('myLabel').textContent  = '🔵 나 (오른쪽)';
+    document.getElementById('oppLabel').textContent = '🔴 상대 (왼쪽)';
+    // Swap HP bar colors visually
+    document.querySelector('#myInfo .hp-fill').classList.replace('p0','p1');
+    document.querySelector('#oppInfo .hp-fill').classList.replace('p1','p0');
+  }
+
+  document.getElementById('statusBar').textContent = pi === 0 ? '왼쪽(빨강) 기지 담당' : '오른쪽(파랑)기지 담당';
+
+  requestAnimationFrame(mainLoop);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN LOOP  (fixed-step simulation + render each frame)
+// ═══════════════════════════════════════════════════════════════════
+let lastTs = 0, accumulator = 0;
+
+function mainLoop(ts) {
+  if (!G || G.over) return;
+  const dt = Math.min((ts - lastTs) / 1000, 0.08);
+  lastTs = ts;
+  accumulator += dt;
+
+  while (accumulator >= SIM_STEP) {
+    tick(SIM_STEP);
+    accumulator -= SIM_STEP;
+    if (G.over) break;
+  }
+  render();
+  updateTopBar();
+  requestAnimationFrame(mainLoop);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SIMULATION TICK
+// ═══════════════════════════════════════════════════════════════════
+function tick(dt) {
+  // Apply opponent actions from queue
+  while (G.pending.length) applyAction(1 - myPI, G.pending.shift());
+
+  // Gold income
+  G.goldT += dt;
+  if (G.goldT >= GOLD_TICK) {
+    G.goldT -= GOLD_TICK;
+    G.gold[0] += ERA_DATA[G.bases[0].era].income;
+    G.gold[1] += ERA_DATA[G.bases[1].era].income;
+  }
+
+  // Special cooldowns
+  for (let i = 0; i < 2; i++) if (G.specCd[i] > 0) G.specCd[i] -= dt;
+
+  // Update units
+  for (const u of G.units) {
+    if (u.dead) continue;
+    u.atkT += dt;
+    const dir = u.owner === 0 ? 1 : -1;
+
+    // Find nearest enemy in attack range
+    let tgt = null, bestD = Infinity;
+    for (const e of G.units) {
+      if (e.dead || e.owner === u.owner) continue;
+      const d = Math.abs(u.x - e.x);
+      if (d <= u.range && d < bestD) { bestD = d; tgt = e; }
+    }
+
+    // Check if in range of enemy base
+    const enemyBaseX = u.owner === 0 ? P1_X + CW - BASE_W : P0_X + BASE_W;
+    const baseDist = Math.abs(u.x - enemyBaseX);
+
+    if (tgt) {
+      // Attack enemy unit
+      if (u.atkT >= u.aspd) {
+        u.atkT = 0;
+        tgt.hp -= u.atk;
+        addProj(u.x, u.y, tgt.x, tgt.y, 0.18, 'shot');
+        if (tgt.hp <= 0) {
+          tgt.dead = true;
+          G.gold[u.owner] += tgt.kr;
+        }
+      }
+    } else if (baseDist <= u.range) {
+      // Attack enemy base
+      if (u.atkT >= u.aspd) {
+        u.atkT = 0;
+        const bi = u.owner === 0 ? 1 : 0;
+        G.bases[bi].hp -= u.atk;
+        addProj(u.x, u.y, enemyBaseX, GROUND - 50, 0.2, 'shot');
+        if (G.bases[bi].hp <= 0) {
+          G.bases[bi].hp = 0;
+          endGame(u.owner, u.owner === myPI ? '🎉 승리! 적 기지를 파괴했습니다!' : '💀 패배... 기지가 함락되었습니다.');
+          return;
+        }
+      }
+    } else {
+      // Walk — check for friendly unit blocking
+      const nextX = u.x + dir * u.spd * dt;
+      const blocked = G.units.some(o =>
+        o !== u && !o.dead && o.owner === u.owner &&
+        Math.abs(nextX - o.x) < 14
+      );
+      if (!blocked) u.x = nextX;
+    }
+  }
+
+  // Remove dead units
+  G.units = G.units.filter(u => !u.dead);
+
+  // Age projectiles
+  G.projs = G.projs.filter(p => { p.life -= dt; return p.life > 0; });
+}
+
+function addProj(x,y,tx,ty,life,type,r) {
+  G.projs.push({x,y,tx,ty,life,maxLife:life,type,r:r||0});
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// APPLY ACTION (own or opponent's)
+// ═══════════════════════════════════════════════════════════════════
+function applyAction(pi, act) {
+  if (!G) return;
+  const eraI = G.bases[pi].era;
+
+  if (act.type === 'spawn') {
+    const def = UNIT_DEFS[eraI].find(d => d.id === act.id);
+    if (!def) return;
+    const startX = pi === 0 ? BASE_W + 4 : P1_X - 4;
+    G.units.push({
+      id:G.uid++, owner:pi, x:startX, y:GROUND - 8,
+      hp:def.hp, maxHp:def.hp, atk:def.atk,
+      aspd:def.aspd, atkT:0, spd:def.spd,
+      range:def.range, kr:def.kr, eraAt:eraI, defId:def.id, dead:false
+    });
+  }
+  else if (act.type === 'upgrade') {
+    if (G.bases[pi].era < 2) {
+      G.bases[pi].era++;
+      if (pi === myPI) buildUnitButtons();
+    }
+  }
+  else if (act.type === 'special') {
+    const eD = ERA_DATA[eraI];
+    G.specCd[pi] = eD.specCd;
+    // Strike zone: hits 60-75% of canvas for P0, 25-40% for P1
+    const strikeX = pi === 0 ? CW * 0.68 : CW * 0.32;
+    const radius  = 90;
+    for (const u of G.units) {
+      if (u.owner === pi || u.dead) continue;
+      if (Math.abs(u.x - strikeX) < radius) {
+        u.hp -= eD.specDmg;
+        if (u.hp <= 0) { u.dead = true; G.gold[pi] += u.kr; }
+      }
+    }
+    // Also damage enemy base a little
+    G.bases[1-pi].hp -= eD.specDmg * 0.15;
+    addProj(strikeX, GROUND-30, strikeX, GROUND-30, 0.6, 'explosion', radius);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PLAYER ACTIONS (send + apply locally)
+// ═══════════════════════════════════════════════════════════════════
+function spawnUnit(unitId) {
+  if (!G || G.over) return;
+  const eI = G.bases[myPI].era;
+  const def = UNIT_DEFS[eI].find(d => d.id === unitId);
+  if (!def || G.gold[myPI] < def.cost) return;
+  G.gold[myPI] -= def.cost;
+  const act = { type:'spawn', id:unitId };
+  applyAction(myPI, act);
+  send({ type:'act', act });
+  updateTopBar();
+}
+
+function upgradeEra() {
+  if (!G || G.over) return;
+  const eI = G.bases[myPI].era;
+  if (eI >= 2) return;
+  const cost = ERA_DATA[eI].upgCost;
+  if (G.gold[myPI] < cost) return;
+  G.gold[myPI] -= cost;
+  const act = { type:'upgrade' };
+  applyAction(myPI, act);
+  send({ type:'act', act });
+  updateTopBar();
+}
+
+function useSpecial() {
+  if (!G || G.over || G.specCd[myPI] > 0) return;
+  const act = { type:'special' };
+  applyAction(myPI, act);
+  send({ type:'act', act });
+  updateTopBar();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+
+// Pre-compute deterministic stars
+const STARS = Array.from({length:40},(_,i)=>({
+  x:(i*173+31)%CW, y:(i*97+17)%(GROUND-30), s:Math.random()<.3?2:1
+}));
+
+function render() {
+  ctx.clearRect(0, 0, CW, CH);
+
+  // Sky
+  ctx.fillStyle = '#0d0d1e';
+  ctx.fillRect(0, 0, CW, GROUND);
+
+  // Stars
+  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  STARS.forEach(s=>ctx.fillRect(s.x,s.y,s.s,s.s));
+
+  // Distant mountains (silhouette)
+  ctx.fillStyle = '#1a1a30';
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND);
+  for (let x=0;x<=CW;x+=40) {
+    const h = 40+Math.sin(x*0.07)*20+Math.sin(x*0.03)*15;
+    ctx.lineTo(x, GROUND-h);
+  }
+  ctx.lineTo(CW, GROUND);
+  ctx.closePath();
+  ctx.fill();
+
+  // Ground
+  ctx.fillStyle = '#4a3820';
+  ctx.fillRect(0, GROUND, CW, CH - GROUND);
+  ctx.fillStyle = '#5d4a28';
+  ctx.fillRect(0, GROUND, CW, 7);
+  ctx.fillStyle = '#3a2c18';
+  ctx.fillRect(0, GROUND+7, CW, 2);
+
+  drawBase(0);
+  drawBase(1);
+
+  G.units.forEach(drawUnit);
+  G.projs.forEach(drawProj);
+}
+
+function drawBase(pi) {
+  const bx = pi === 0 ? P0_X : P1_X;
+  const by = GROUND - BASE_H;
+
+  const ERA_COLORS = [
+    ['#5c3a2a','#3a2018','#8b6040'], // Stone age
+    ['#2a3a6a','#1a2448','#6080b0'], // Medieval
+    ['#3a4a3a','#2a3428','#7a9070'], // Industrial
+  ];
+  const era = G.bases[pi].era;
+  const [main, dark, light] = ERA_COLORS[era];
+
+  // Base body
+  ctx.fillStyle = main;
+  ctx.fillRect(bx, by, BASE_W, BASE_H);
+
+  // Stone/brick pattern
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = 0.5;
+  for (let row=0; row<5; row++) {
+    const offset = (row%2)*18;
+    for (let col=-1; col<5; col++) {
+      ctx.strokeRect(bx + col*18 + offset, by + row*22, 17, 21);
+    }
+  }
+
+  // Top wall (darker)
+  ctx.fillStyle = dark;
+  ctx.fillRect(bx, by, BASE_W, 8);
+
+  // Battlements
+  for (let i=0;i<5;i++) {
+    ctx.fillStyle = dark;
+    ctx.fillRect(bx + i*14, by-12, 10, 13);
+  }
+
+  // Gate/door
+  ctx.fillStyle = '#0a0805';
+  const dw=22, dh=36;
+  const dx = pi===0 ? bx+BASE_W-dw : bx;
+  ctx.fillRect(dx, GROUND-dh, dw, dh);
+  // Arch
+  ctx.fillStyle = '#110e08';
+  ctx.beginPath();
+  ctx.arc(dx+dw/2, GROUND-dh, dw/2, Math.PI, 0);
+  ctx.fill();
+
+  // Flag pole + flag
+  const flagPoleX = pi===0 ? bx+BASE_W-12 : bx+12;
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(flagPoleX, by-38);
+  ctx.lineTo(flagPoleX, by-10);
+  ctx.stroke();
+  ctx.fillStyle = pi===0 ? '#c0392b' : '#2471a3';
+  const fx = pi===0 ? flagPoleX-20 : flagPoleX;
+  ctx.fillRect(fx, by-38, 20, 13);
+
+  // HP bar above base
+  const hpPct = Math.max(0, G.bases[pi].hp / BASE_HP);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(bx+2, by-52, BASE_W-4, 7);
+  const hpColor = hpPct>0.5 ? '#27ae60' : hpPct>0.2 ? '#e67e22' : '#c0392b';
+  ctx.fillStyle = hpColor;
+  ctx.fillRect(bx+2, by-52, (BASE_W-4)*hpPct, 7);
+
+  // Era icon on base
+  const eraIcons = ['🗿','⚔️','⚙️'];
+  ctx.font = '16px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(eraIcons[era], bx+BASE_W/2, by+BASE_H/2+4);
+
+  // Special ready/CD indicator (only for your own base)
+  if (pi === myPI) {
+    const cd = G.specCd[pi];
+    ctx.textAlign = 'center';
+    if (cd <= 0) {
+      ctx.font='bold 10px sans-serif';
+      ctx.fillStyle='#ffd700';
+      ctx.fillText('💥', bx+BASE_W/2, by+BASE_H/2+22);
+    } else {
+      ctx.font='10px sans-serif';
+      ctx.fillStyle='#f39c12';
+      ctx.fillText(cd.toFixed(1)+'s', bx+BASE_W/2, by+BASE_H/2+22);
+    }
+  }
+}
+
+function drawUnit(u) {
+  const isP0 = u.owner === 0;
+  const color  = isP0 ? '#c0392b' : '#2471a3';
+  const shadow = isP0 ? '#7b241c' : '#1a4f6e';
+  const era = u.eraAt;
+  const r   = era===0?7 : era===1?8 : 9;
+
+  // Ground shadow
+  ctx.fillStyle = 'rgba(0,0,0,.25)';
+  ctx.beginPath();
+  ctx.ellipse(u.x, GROUND+1, r, 3, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Unit body
+  ctx.fillStyle = color;
+  if (era === 0) {
+    // Circle (primitive)
+    ctx.beginPath();
+    ctx.arc(u.x, u.y, r, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = shadow;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  } else if (era === 1) {
+    // Square (medieval)
+    ctx.fillRect(u.x-r, u.y-r, r*2, r*2);
+    ctx.strokeStyle = shadow;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(u.x-r, u.y-r, r*2, r*2);
+  } else {
+    // Diamond (modern)
+    ctx.beginPath();
+    ctx.moveTo(u.x,    u.y-r);
+    ctx.lineTo(u.x+r,  u.y);
+    ctx.lineTo(u.x,    u.y+r);
+    ctx.lineTo(u.x-r,  u.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle=shadow; ctx.lineWidth=1; ctx.stroke();
+  }
+
+  // HP bar
+  const hpPct = u.hp/u.maxHp;
+  const bw = r*2+4;
+  ctx.fillStyle='#111';
+  ctx.fillRect(u.x-bw/2, u.y-r-9, bw, 4);
+  ctx.fillStyle = hpPct>.5 ? '#2ecc71' : hpPct>.25 ? '#e67e22' : '#e74c3c';
+  ctx.fillRect(u.x-bw/2, u.y-r-9, bw*hpPct, 4);
+}
+
+function drawProj(p) {
+  const t = 1 - p.life/p.maxLife;
+  if (p.type === 'explosion') {
+    const rad = p.r * Math.sin(t * Math.PI);
+    if (rad <= 0) return;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rad, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255,160,0,${0.45*(1-t)})`;
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255,80,0,${0.8*(1-t)})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Inner core
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, rad*0.4, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255,240,100,${0.6*(1-t)})`;
+    ctx.fill();
+  } else {
+    // Bullet / arrow
+    const cx = p.x + (p.tx - p.x) * t;
+    const cy = p.y + (p.ty - p.y) * t;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,230,60,.95)';
+    ctx.fill();
+    // Glow
+    ctx.beginPath();
+    ctx.arc(cx, cy, 5, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,200,0,.2)';
+    ctx.fill();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// UI
+// ═══════════════════════════════════════════════════════════════════
+function buildUnitButtons() {
+  const era   = G.bases[myPI].era;
+  const units = UNIT_DEFS[era];
+  const row   = document.getElementById('unitRow');
+  row.innerHTML = '';
+  units.forEach(u => {
+    const b = document.createElement('button');
+    b.className = 'u-btn';
+    b.dataset.cost = u.cost;
+    b.dataset.id   = u.id;
+    b.innerHTML = `${u.emoji} ${u.name}<span class="ucost">${u.cost}g</span>`;
+    b.onclick = () => spawnUnit(u.id);
+    row.appendChild(b);
+  });
+}
+
+function updateTopBar() {
+  if (!G) return;
+  const mi = myPI, oi = 1 - myPI;
+  const mhp = Math.max(0, G.bases[mi].hp);
+  const ohp = Math.max(0, G.bases[oi].hp);
+
+  document.getElementById('myHpBar').style.width  = (mhp/BASE_HP*100)+'%';
+  document.getElementById('oppHpBar').style.width = (ohp/BASE_HP*100)+'%';
+  document.getElementById('myHpNum').textContent  = `${Math.round(mhp)} / ${BASE_HP}`;
+  document.getElementById('oppHpNum').textContent = `${Math.round(ohp)} / ${BASE_HP}`;
+  document.getElementById('goldNum').textContent  = Math.floor(G.gold[mi]);
+  document.getElementById('myEraTag').textContent  = ERA_DATA[G.bases[mi].era].name;
+  document.getElementById('oppEraTag').textContent = ERA_DATA[G.bases[oi].era].name;
+
+  // Special button
+  const cd = G.specCd[mi];
+  const specBtn = document.getElementById('specBtn');
+  const eD = ERA_DATA[G.bases[mi].era];
+  specBtn.disabled = cd > 0 || G.over;
+  document.getElementById('specCdSpan').textContent = cd>0 ? `(${cd.toFixed(1)}s)` : '(준비됨)';
+  specBtn.querySelector(':not(span)') // update text before span
+  specBtn.childNodes[0].textContent = `💥 ${eD.specName} `;
+
+  // Upgrade button
+  const era = G.bases[mi].era;
+  const upgBtn = document.getElementById('upgBtn');
+  if (era >= 2) {
+    upgBtn.disabled = true;
+    upgBtn.textContent = '🔬 최대 시대';
+  } else {
+    const upgCost = ERA_DATA[era].upgCost;
+    upgBtn.disabled = G.gold[mi] < upgCost || G.over;
+    upgBtn.textContent = `🔬 시대 진화 (${upgCost}g)`;
+  }
+
+  // Unit button affordability
+  document.querySelectorAll('.u-btn').forEach(b => {
+    b.disabled = G.gold[mi] < parseInt(b.dataset.cost) || G.over;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GAME OVER
+// ═══════════════════════════════════════════════════════════════════
+function endGame(winner, msg) {
+  if (!G || G.over) return;
+  G.over   = true;
+  G.winner = winner;
+
+  setTimeout(() => {
+    document.getElementById('game').style.display    = 'none';
+    document.getElementById('gameover').style.display = 'block';
+    document.getElementById('goTitle').textContent   = winner === myPI ? '🏆 승리!' : '💀 패배...';
+    document.getElementById('goTitle').style.color   = winner === myPI ? '#ffd700' : '#e74c3c';
+    document.getElementById('goMsg').textContent     = msg;
+  }, 400);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════
+document.getElementById('joinInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') joinRoom();
+  document.getElementById('joinInput').value = e.target.value.toUpperCase();
+});
+
+connect();
+</script>
+</body>
+</html>

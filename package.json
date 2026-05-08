@@ -1,0 +1,15 @@
+{
+  "name": "age-of-war-online",
+  "version": "1.0.0",
+  "description": "Age of War style real-time online 2-player battle game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "ws": "^8.14.0"
+  }
+}
